@@ -69,8 +69,11 @@ Each of these ACEs shows its type, identity, permission, and inheritance flag.
     3  +pan_gid:1,rxnRP,I:OICI 
 
 ACE 4:  Windows users that belong to group S-1-5-21-1214440339 have all permissions.  This ACE will be inherited by this object and its subdirectories. 
+
 ACE 1   Unix root user has all permissions.  This ACE will be inherited by this object and its subdirectories. 
+
 ACE 2:  Unix users that belong to group 0 can read, execute, create, read attributes, and read the ACL.  The ACE will be inherited by this object and its subdirectories. 
+
 ACE 3:  The everyone group (pan_gid:1) can read, execute, create, read attributes, and read the ACL.  The ACE will be inherited by this object and its subdirectories. 
 
 ### PanFS Identity Types
