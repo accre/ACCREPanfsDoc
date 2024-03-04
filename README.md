@@ -111,3 +111,73 @@ ACE 3:  The everyone group (pan_gid:1) can read, execute, create, read attribute
 | synchronize | S | N/A | N/A |
 | write retention | h | N/A | N/A |
 | write retention hold | H | N/A | N/A |
+
+### Example Usage:
+
+To view the original acl of a file or folder please use this command:
+```
+getfattr --dump /path/to/file/or/folder
+```
+
+For example:
+
+```
+$ ls -l
+-rw-r--r-- 1 koirap1 accre   5 Feb 27 10:12 readthis
+
+$ getfattr --dump readthis
+Hide quoted text
+# file: readthis
+user.panfs.acl="v2: +uid:906449,rwakponNRWP* +gid:36014,rnRP* +pan_gid:1,rnRP"
+...
+```
+
+Notice the `*(stars)`. They represent the primary ownership. Since it's the user `koirap1`, that uid and gid has primary ownership. The group can only r (read), n (read named attributes), R (read attributes) and P (read acls). For further explanation of the flags, refer to the document's previous sections.
+
+Now to set the acl to allow (+uid) or disallow (~uid) a certain user from accessing the folder. Let's assume I want to allow user `vunetid` to access that file.
+
+```
+$ id vunetid
+uid=315497(vunetid) ...
+```
+
+I would simply add the following acl to the file: `+uid:315497,rwakponNRWP`. Please notice that I want to add it to the already existing acls but the setfattr command replaces the entire acl. Therefore I would do this command.
+```
+$ setfattr -n user.panfs.acl -v "v2: +uid:906449,rwakponNRWP* +gid:36014,rnRP* +pan_gid:1,rnRP +uid:315497,rwakponNRWP" readthis
+```
+
+Now if you getfattr --dump on the file, you will see the following acls:
+```
+# file: readthis
+user.panfs.acl="v2: +uid:315497,rwakponNRWP +uid:906449,rwakponNRWP* +gid:36014,rnRP* +pan_gid:1,rnRP"
+```
+suggesting that user with uid 315497 (chaudhu) no can perform the set flags.
+
+Finally, one caveat here, is if you want to allow users to recursive access to folders. In that case, you would first make the folder traversable by setting the x flag to user, group or anyone outside. Only after that, can you do something like this:
+```
+$ mkdir test
+$ ls -l  
+total 56
+-rw-r--r-- 1 koirap1 accre    5 Feb 27 10:12 readthis
+drwxr-xr-x 2 koirap1 accre 4096 Feb 27 10:36 test
+
+$ getfattr --dump test
+user.panfs.acl="v2: +uid:906449,rxcdpoCnNDRWP* +gid:36014,rxnRP* +pan_gid:1,rxnRP +uid:0,rwxacdCnNDRWP,I:OICIID +gid:0,rxnRP,I:OICIID +pan_gid:1,rxnRP,I:OICIIOID"
+```
+
+The gid:0 is for root users and pan_gid:1 is for all users under the system. We can leave them as it is.
+The only thing we need to change in here is to make sure that the user 315497 (vunetid) can read write and access the files inside the test folder. So we will add a `+uid:315497,rxcdpoCnNDRWP,I:OICI`. This translates to give uid 315497 access `rxcdpoCnNDRWP` and make this acl to be inherited by `objects (OI)` and `directories (CI)`. Refer to the previous section of this document for more details
+
+```
+$ setfattr -n user.panfs.acl -v "v2: +uid:906449,rxcdpoCnNDRWP* +gid:36014,rxnRP* +pan_gid:1,rxnRP +uid:0,rwxacdCnNDRWP,I:OICIID +gid:0,rxnRP,I:OICIID +pan_gid:1,rxnRP,I:OICIIOID +uid:315497,rxcdpoCnNDRWP,I:OICI"  test
+```
+
+Now you can create a file inside the folder and look at it's acls.
+```
+$ touch test/test.test
+$ getfattr --dump test/test.test
+# file: test.test
+user.panfs.acl="v2: +uid:906449,rwakponNRWP* +gid:36014,rnRP* +pan_gid:1,rnRP +uid:315497,rcdpoCnNDRWP,I:ID +uid:0,rwacdCnNDRWP,I:ID +gid:0,rnRP,I:ID"
+```
+The `+uid:315497,rcdpoCnNDRWP,I:ID` part means that user 315497 has access `rcdpoCnNDRWP` and this acl is inherited from the parent folder's acl (I: ID)
+
